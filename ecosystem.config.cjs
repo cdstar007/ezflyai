@@ -7,7 +7,8 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         HOST: "127.0.0.1",
-        PORT: "3020"
+        PORT: "3020",
+        DEEPSEEK_MODEL: "deepseek-chat"
       }
     }
   ]

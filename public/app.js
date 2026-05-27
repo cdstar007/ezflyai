@@ -6,8 +6,19 @@ const autoRefreshInput = document.querySelector("#auto-refresh");
 const errorBox = document.querySelector("#error");
 const lastUpdated = document.querySelector("#last-updated");
 const marketStatus = document.querySelector("#market-status");
+const pageTitle = document.querySelector("#page-title");
+const pageSubtitle = document.querySelector(".topbar .subtle");
+const navTabs = document.querySelectorAll(".nav-tab");
+const views = document.querySelectorAll(".view");
+const generateReportButton = document.querySelector("#generate-report");
+const reportSlot = document.querySelector("#report-slot");
+const reportErrorBox = document.querySelector("#report-error");
+const reportStatus = document.querySelector("#report-status");
+const reportGeneratedAt = document.querySelector("#report-generated-at");
+const reportFrame = document.querySelector("#report-frame");
 
 let timer = null;
+let reportLoaded = false;
 
 const numberFormatter = new Intl.NumberFormat("zh-TW", {
   maximumFractionDigits: 2,
@@ -57,6 +68,38 @@ function updateMarketStatus(queryTime) {
 function setError(message) {
   errorBox.hidden = !message;
   errorBox.textContent = message || "";
+}
+
+function setReportError(message) {
+  reportErrorBox.hidden = !message;
+  reportErrorBox.textContent = message || "";
+}
+
+function switchView(viewName) {
+  const isReport = viewName === "report";
+  navTabs.forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.view === viewName);
+  });
+  views.forEach((view) => {
+    view.classList.toggle("active", view.id === `${viewName}-view`);
+  });
+  pageTitle.textContent = isReport ? "台股每日股市報告" : "台股自選股即時報價";
+  pageSubtitle.textContent = isReport
+    ? "DeepSeek 生成 HTML 日報，聚焦收盤、籌碼、產業與隔日交易計畫"
+    : "南亞科 2408、華邦電 2344、台積電 2330、群創 3481";
+
+  if (isReport && !reportLoaded) {
+    loadDailyReport();
+  }
+}
+
+function formatGeneratedAt(value) {
+  if (!value) return "--";
+  return new Intl.DateTimeFormat("zh-TW", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: "Asia/Taipei"
+  }).format(new Date(value));
 }
 
 function setField(card, field, value) {
@@ -133,6 +176,70 @@ async function loadQuotes() {
   }
 }
 
+function reportFallbackHtml(message) {
+  return `<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      padding: 32px;
+      color: #172026;
+      background: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+    }
+    .empty {
+      border: 1px solid #d9e1e5;
+      border-radius: 8px;
+      padding: 24px;
+      background: #f7fafb;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body><div class="empty">${message}</div></body>
+</html>`;
+}
+
+async function loadDailyReport({ force = false } = {}) {
+  generateReportButton.disabled = true;
+  setReportError("");
+  reportStatus.textContent = force ? "正在重新生成報告..." : "正在生成今日報告...";
+  reportGeneratedAt.textContent = "請稍候";
+
+  try {
+    const response = await fetch("/api/daily-report", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        slot: reportSlot.value,
+        force
+      })
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "報告生成失敗");
+    }
+
+    reportFrame.srcdoc = data.html || reportFallbackHtml("DeepSeek 未回傳 HTML 內容。");
+    reportStatus.textContent = data.cached ? "已載入今日快取報告" : "今日報告已生成";
+    reportGeneratedAt.textContent = formatGeneratedAt(data.generatedAt);
+    generateReportButton.textContent = "重新生成報告";
+    reportLoaded = true;
+  } catch (error) {
+    const message = `無法生成每日股市報告：${error.message}`;
+    setReportError(message);
+    reportFrame.srcdoc = reportFallbackHtml(message);
+    reportStatus.textContent = "生成失敗";
+    reportGeneratedAt.textContent = "--";
+  } finally {
+    generateReportButton.disabled = false;
+  }
+}
+
 function syncTimer() {
   if (timer) {
     clearInterval(timer);
@@ -147,6 +254,15 @@ function syncTimer() {
 refreshButton.addEventListener("click", loadQuotes);
 symbolsInput.addEventListener("change", loadQuotes);
 autoRefreshInput.addEventListener("change", syncTimer);
+generateReportButton.addEventListener("click", () => loadDailyReport({ force: true }));
+reportSlot.addEventListener("change", () => {
+  reportLoaded = false;
+  loadDailyReport();
+});
+navTabs.forEach((tab) => {
+  tab.addEventListener("click", () => switchView(tab.dataset.view));
+});
 
 syncTimer();
 loadQuotes();
+reportFrame.srcdoc = reportFallbackHtml("切換到每日股市報告後，系統會生成今日報告。");
