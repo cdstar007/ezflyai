@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>台股自選股即時報價</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">TWSE Realtime Watchlist</p>
+          <h1 id="page-title">台股自選股即時報價</h1>
+          <p class="subtle">南亞科 2408、華邦電 2344、台積電 2330、群創 3481</p>
+        </div>
+        <div class="status-panel">
+          <span id="market-status" class="status-dot">讀取中</span>
+          <span id="last-updated">--</span>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="自選股控制">
+        <label class="symbol-input">
+          <span>股票代號</span>
+          <input id="symbols" value="2408,2344,2330,3481" inputmode="numeric" />
+        </label>
+        <button id="refresh" type="button">立即更新</button>
+        <label class="toggle">
+          <input id="auto-refresh" type="checkbox" checked />
+          <span>自動每 5 秒更新</span>
+        </label>
+      </section>
+
+      <section id="error" class="error" hidden></section>
+      <section id="quote-grid" class="quote-grid" aria-live="polite"></section>
+    </main>
+
+    <template id="quote-card-template">
+      <article class="quote-card">
+        <div class="quote-head">
+          <div>
+            <p class="symbol"></p>
+            <h2></h2>
+          </div>
+          <span class="badge"></span>
+        </div>
+        <div class="price-row">
+          <strong class="price"></strong>
+          <span class="change"></span>
+        </div>
+        <dl class="stats">
+          <div>
+            <dt>開盤</dt>
+            <dd data-field="open"></dd>
+          </div>
+          <div>
+            <dt>最高</dt>
+            <dd data-field="high"></dd>
+          </div>
+          <div>
+            <dt>最低</dt>
+            <dd data-field="low"></dd>
+          </div>
+          <div>
+            <dt>昨收</dt>
+            <dd data-field="previousClose"></dd>
+          </div>
+          <div>
+            <dt>成交量</dt>
+            <dd data-field="volumeLots"></dd>
+          </div>
+          <div>
+            <dt>時間</dt>
+            <dd data-field="time"></dd>
+          </div>
+        </dl>
+        <div class="book">
+          <div>
+            <span>最佳買價</span>
+            <strong data-field="bestBid"></strong>
+          </div>
+          <div>
+            <span>最佳賣價</span>
+            <strong data-field="bestAsk"></strong>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
