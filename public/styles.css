@@ -151,8 +151,7 @@ h1 {
 
 .symbol-input span,
 .symbol-input small,
-.toggle,
-.report-select span {
+.toggle {
   color: var(--muted);
   font-size: 0.92rem;
   font-weight: 700;
@@ -163,8 +162,7 @@ h1 {
   font-weight: 650;
 }
 
-.symbol-input input,
-.report-select select {
+.symbol-input input {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -174,8 +172,7 @@ h1 {
   outline: none;
 }
 
-.symbol-input input:focus,
-.report-select select:focus {
+.symbol-input input:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(29, 95, 143, 0.16);
 }
@@ -368,8 +365,8 @@ dd {
 
 .report-toolbar {
   display: grid;
-  grid-template-columns: 1fr minmax(220px, 280px) auto;
-  align-items: end;
+  grid-template-columns: 1fr auto;
+  align-items: center;
   gap: 16px;
   padding: 18px;
   border-radius: 8px;
@@ -381,9 +378,13 @@ dd {
   font-size: clamp(1.6rem, 3vw, 2.4rem);
 }
 
-.report-select {
-  display: grid;
-  gap: 6px;
+.report-note {
+  margin: 0;
+  max-width: 320px;
+  color: var(--muted);
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: right;
 }
 
 .report-shell {
@@ -419,6 +420,11 @@ dd {
   .report-toolbar {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .report-note {
+    max-width: none;
+    text-align: left;
   }
 }
 

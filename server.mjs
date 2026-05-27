@@ -1,10 +1,11 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(__dirname, "public");
+const reportsDir = join(__dirname, "data", "reports");
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "127.0.0.1";
 const defaultSymbols = ["2408", "2344", "2330", "3481"];
@@ -37,6 +38,7 @@ const reportSymbols = [
   "3481"
 ];
 const reportCache = new Map();
+const reportInFlight = new Map();
 
 const dailyReportPrompt = `你是一名专业的台股市场日报分析师、总体经济策略分析师和台湾电子半导体产业研究员。
 
@@ -225,6 +227,29 @@ function extractHtml(content) {
   return (match ? match[1] : content).trim();
 }
 
+function reportFilePath(date) {
+  return join(reportsDir, `${date}.json`);
+}
+
+async function readStoredReport(date) {
+  try {
+    const report = JSON.parse(await readFile(reportFilePath(date), "utf8"));
+    return {
+      ...report,
+      cached: true,
+      persisted: true
+    };
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function writeStoredReport(report) {
+  await mkdir(reportsDir, { recursive: true });
+  await writeFile(reportFilePath(report.date), JSON.stringify(report, null, 2), "utf8");
+}
+
 function buildReportPrompt(slot, marketContext) {
   const slotText = slot === "morning" ? "早上 07:30" : "傍晚 18:00";
   return `${dailyReportPrompt}
@@ -250,18 +275,13 @@ ${marketContext}
 - 若無法取得最新可靠資料，請在對應欄位明確寫「暫無可靠資料」，不要編造。`;
 }
 
-async function createDailyReport({ slot = "close", force = false } = {}) {
+async function generateDailyReport(slot) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     throw new Error("伺服器尚未設定 DEEPSEEK_API_KEY");
   }
 
   const date = taipeiDateString();
-  const cacheKey = `${date}:${slot}`;
-  if (!force && reportCache.has(cacheKey)) {
-    return { ...reportCache.get(cacheKey), cached: true };
-  }
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 180000);
 
@@ -312,13 +332,44 @@ async function createDailyReport({ slot = "close", force = false } = {}) {
       generatedAt: new Date().toISOString(),
       model: payload.model || process.env.DEEPSEEK_MODEL || "deepseek-chat",
       html: extractHtml(content),
-      cached: false
+      cached: false,
+      persisted: true
     };
-    reportCache.set(cacheKey, report);
     return report;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function createDailyReport({ slot = "close" } = {}) {
+  const date = taipeiDateString();
+  const cacheKey = date;
+
+  if (reportCache.has(cacheKey)) {
+    return { ...reportCache.get(cacheKey), cached: true, persisted: true };
+  }
+
+  const storedReport = await readStoredReport(date);
+  if (storedReport) {
+    reportCache.set(cacheKey, storedReport);
+    return storedReport;
+  }
+
+  if (!reportInFlight.has(cacheKey)) {
+    reportInFlight.set(
+      cacheKey,
+      (async () => {
+        const report = await generateDailyReport(slot);
+        await writeStoredReport(report);
+        reportCache.set(cacheKey, report);
+        return report;
+      })().finally(() => {
+        reportInFlight.delete(cacheKey);
+      })
+    );
+  }
+
+  return reportInFlight.get(cacheKey);
 }
 
 function normalizeSymbols(value) {
@@ -643,8 +694,7 @@ const server = createServer(async (req, res) => {
         res,
         200,
         await createDailyReport({
-          slot: body.slot === "morning" ? "morning" : "close",
-          force: Boolean(body.force)
+          slot: body.slot === "morning" ? "morning" : "close"
         })
       );
     } catch (error) {

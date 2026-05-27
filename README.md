@@ -25,6 +25,8 @@ http://127.0.0.1:3000
 
 頂部選單可切換到「每日股市報告」，後端會呼叫 DeepSeek Chat Completions API 生成 HTML 報告，再顯示在頁面中。
 
+每日報告一天只會生成一次，生成後保存到 `data/reports/YYYY-MM-DD.json`；同一天重新打開頁面只會讀取保存內容，不會再次呼叫 DeepSeek。
+
 部署環境需設定：
 
 ```bash

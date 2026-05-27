@@ -10,8 +10,6 @@ const pageTitle = document.querySelector("#page-title");
 const pageSubtitle = document.querySelector(".topbar .subtle");
 const navTabs = document.querySelectorAll(".nav-tab");
 const views = document.querySelectorAll(".view");
-const generateReportButton = document.querySelector("#generate-report");
-const reportSlot = document.querySelector("#report-slot");
 const reportErrorBox = document.querySelector("#report-error");
 const reportStatus = document.querySelector("#report-status");
 const reportGeneratedAt = document.querySelector("#report-generated-at");
@@ -209,20 +207,16 @@ function reportFallbackHtml(message) {
 </html>`;
 }
 
-async function loadDailyReport({ force = false } = {}) {
-  generateReportButton.disabled = true;
+async function loadDailyReport() {
   setReportError("");
-  reportStatus.textContent = force ? "正在重新生成報告..." : "正在生成今日報告...";
+  reportStatus.textContent = "正在讀取今日報告...";
   reportGeneratedAt.textContent = "請稍候";
 
   try {
     const response = await fetch("/api/daily-report", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        slot: reportSlot.value,
-        force
-      })
+      body: JSON.stringify({})
     });
     const data = await response.json();
 
@@ -231,9 +225,8 @@ async function loadDailyReport({ force = false } = {}) {
     }
 
     reportFrame.srcdoc = data.html || reportFallbackHtml("DeepSeek 未回傳 HTML 內容。");
-    reportStatus.textContent = data.cached ? "已載入今日快取報告" : "今日報告已生成";
+    reportStatus.textContent = data.cached ? "已載入今日保存報告" : "今日報告已生成並保存";
     reportGeneratedAt.textContent = formatGeneratedAt(data.generatedAt);
-    generateReportButton.textContent = "重新生成報告";
     reportLoaded = true;
   } catch (error) {
     const message = `無法生成每日股市報告：${error.message}`;
@@ -241,8 +234,6 @@ async function loadDailyReport({ force = false } = {}) {
     reportFrame.srcdoc = reportFallbackHtml(message);
     reportStatus.textContent = "生成失敗";
     reportGeneratedAt.textContent = "--";
-  } finally {
-    generateReportButton.disabled = false;
   }
 }
 
@@ -260,15 +251,10 @@ function syncTimer() {
 refreshButton.addEventListener("click", loadQuotes);
 symbolsInput.addEventListener("change", loadQuotes);
 autoRefreshInput.addEventListener("change", syncTimer);
-generateReportButton.addEventListener("click", () => loadDailyReport({ force: true }));
-reportSlot.addEventListener("change", () => {
-  reportLoaded = false;
-  loadDailyReport();
-});
 navTabs.forEach((tab) => {
   tab.addEventListener("click", () => switchView(tab.dataset.view));
 });
 
 syncTimer();
 loadQuotes();
-reportFrame.srcdoc = reportFallbackHtml("切換到每日股市報告後，系統會生成今日報告。");
+reportFrame.srcdoc = reportFallbackHtml("切換到每日股市報告後，系統會讀取今日保存報告。若今日尚未生成，才會建立一次。");

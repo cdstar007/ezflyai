@@ -50,19 +50,12 @@
       </section>
 
       <section id="report-view" class="view">
-        <section class="report-toolbar" aria-label="每日股市報告控制">
+        <section class="report-toolbar" aria-label="每日股市報告">
           <div>
             <p class="eyebrow">Daily Market Report</p>
             <h2>今日股市報告</h2>
           </div>
-          <label class="report-select">
-            <span>報告版本</span>
-            <select id="report-slot">
-              <option value="close">傍晚 18:00 收盤版</option>
-              <option value="morning">早上 07:30 早報版</option>
-            </select>
-          </label>
-          <button id="generate-report" type="button">生成今日報告</button>
+          <p class="report-note">每日只生成一次；已生成後會直接讀取保存內容。</p>
         </section>
         <section id="report-error" class="error" hidden></section>
         <section class="report-shell">
