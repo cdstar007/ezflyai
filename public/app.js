@@ -50,9 +50,11 @@ function formatDate(dateValue, timeValue) {
 
 function normalizeSymbols() {
   return symbolsInput.value
-    .split(/[,\s，、]+/)
+    .replace(/(\d{4})(?=\d{4})/g, "$1 ")
+    .split(/[,\s，、；;]+/)
     .map((symbol) => symbol.trim())
     .filter(Boolean)
+    .filter((symbol) => /^\d{4}$/.test(symbol))
     .filter((symbol, index, array) => array.indexOf(symbol) === index)
     .join(",");
 }

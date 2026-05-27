@@ -150,11 +150,17 @@ h1 {
 }
 
 .symbol-input span,
+.symbol-input small,
 .toggle,
 .report-select span {
   color: var(--muted);
   font-size: 0.92rem;
   font-weight: 700;
+}
+
+.symbol-input small {
+  font-size: 0.82rem;
+  font-weight: 650;
 }
 
 .symbol-input input,

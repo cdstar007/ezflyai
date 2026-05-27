@@ -29,7 +29,14 @@
         <section class="controls" aria-label="自選股控制">
           <label class="symbol-input">
             <span>股票代號</span>
-            <input id="symbols" value="2408,2344,2330,3481" inputmode="numeric" />
+            <input
+              id="symbols"
+              value="2408 2344 2330 3481"
+              inputmode="text"
+              autocomplete="off"
+              placeholder="例：2408 2344 2330 3481"
+            />
+            <small>可用空白、換行、逗號或頓號分隔</small>
           </label>
           <button id="refresh" type="button">立即更新</button>
           <label class="toggle">
