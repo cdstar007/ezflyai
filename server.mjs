@@ -9,7 +9,6 @@ const reportsDir = join(__dirname, "data", "reports");
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "127.0.0.1";
 const defaultSymbols = ["2408", "2344", "2330", "3481"];
-const movingAverageWindows = [5, 10, 20, 60];
 const reportSymbols = [
   "2330",
   "2317",
@@ -395,12 +394,6 @@ function parseLevel(value) {
     .filter((number) => number !== null);
 }
 
-function parseMarketNumber(value) {
-  if (!value || value === "--") return null;
-  const number = Number(String(value).replace(/,/g, ""));
-  return Number.isFinite(number) ? number : null;
-}
-
 function formatTaiwanDateTime() {
   return new Intl.DateTimeFormat("zh-TW", {
     timeZone: "Asia/Taipei",
@@ -437,8 +430,7 @@ function mapQuote(item) {
     bestAsk: parseLevel(item.a),
     bestAskVolume: parseLevel(item.f),
     bestBid: parseLevel(item.b),
-    bestBidVolume: parseLevel(item.g),
-    movingAverages: null
+    bestBidVolume: parseLevel(item.g)
   };
 }
 
@@ -472,117 +464,11 @@ async function fetchQuotes(symbols) {
       .filter((item) => /^\d{4}$/.test(item.c || ""))
       .map(mapQuote);
 
-  await Promise.all(
-    quotes.map(async (quote) => {
-      quote.movingAverages = await fetchMovingAverages(quote);
-    })
-  );
-
   return {
     quotes,
     queryTime: payload.queryTime,
     userDelay: payload.userDelay
   };
-}
-
-function monthStartDates(anchor = new Date(), count = 5) {
-  const dates = [];
-  for (let index = 0; index < count; index += 1) {
-    const date = new Date(anchor.getFullYear(), anchor.getMonth() - index, 1);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    dates.push(`${year}${month}01`);
-  }
-  return dates;
-}
-
-async function fetchTwseDailyCloses(symbol) {
-  const monthPayloads = await Promise.all(
-    monthStartDates().map(async (date) => {
-      const endpoint = new URL("https://www.twse.com.tw/exchangeReport/STOCK_DAY");
-      endpoint.searchParams.set("response", "json");
-      endpoint.searchParams.set("date", date);
-      endpoint.searchParams.set("stockNo", symbol);
-
-      const response = await fetch(endpoint, {
-        headers: {
-          accept: "application/json,text/plain,*/*",
-          "user-agent": "twstock-watchlist/1.0"
-        }
-      });
-
-      if (!response.ok) return [];
-      const payload = await response.json().catch(() => ({}));
-      if (payload.stat !== "OK" || !Array.isArray(payload.data)) return [];
-      return payload.data;
-    })
-  );
-
-  return monthPayloads
-    .flat()
-    .map((row) => ({
-      date: row[0],
-      close: parseMarketNumber(row[6])
-    }))
-    .filter((day) => day.close !== null)
-    .sort((left, right) => left.date.localeCompare(right.date));
-}
-
-function average(values) {
-  if (!values.length) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-async function fetchMovingAverages(quote) {
-  if (quote.exchange !== "tse") {
-    return {
-      ma5: null,
-      ma10: null,
-      ma20: null,
-      ma60: null,
-      source: "暫不支援上櫃均線"
-    };
-  }
-
-  try {
-    const closes = await fetchTwseDailyCloses(quote.symbol);
-    const quoteDate = quote.date
-      ? `${Number(quote.date.slice(0, 4)) - 1911}/${quote.date.slice(4, 6)}/${quote.date.slice(6, 8)}`
-      : null;
-    const latestDaily = closes.at(-1);
-    const adjustedCloses = [...closes];
-
-    if (
-      quote.price !== null &&
-      quoteDate &&
-      (!latestDaily || latestDaily.date !== quoteDate)
-    ) {
-      adjustedCloses.push({ date: quoteDate, close: quote.price });
-    }
-
-    const closeValues = adjustedCloses.map((day) => day.close);
-    const movingAverages = Object.fromEntries(
-      movingAverageWindows.map((window) => [
-        `ma${window}`,
-        average(closeValues.slice(-window))
-      ])
-    );
-
-    return {
-      ...movingAverages,
-      source: "TWSE STOCK_DAY",
-      latestDate: adjustedCloses.at(-1)?.date || null,
-      sampleSize: closeValues.length
-    };
-  } catch (error) {
-    return {
-      ma5: null,
-      ma10: null,
-      ma20: null,
-      ma60: null,
-      source: `均線資料讀取失敗：${error.message}`
-    };
-  }
 }
 
 function formatQuoteContext(quote) {

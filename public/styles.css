@@ -284,8 +284,7 @@ h2 {
   color: var(--green);
 }
 
-.stats,
-.moving-averages {
+.stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
@@ -293,7 +292,6 @@ h2 {
 }
 
 .stats div,
-.moving-averages div,
 .book div {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -301,44 +299,7 @@ h2 {
   background: rgba(244, 247, 248, 0.72);
 }
 
-.moving-averages .ma {
-  border-left-width: 4px;
-}
-
-.moving-averages .ma5 {
-  border-left-color: #1d5f8f;
-}
-
-.moving-averages .ma10 {
-  border-left-color: #0a8f62;
-}
-
-.moving-averages .ma20 {
-  border-left-color: #a36a00;
-}
-
-.moving-averages .ma60 {
-  border-left-color: #8b4bb3;
-}
-
-.moving-averages .ma5 dd {
-  color: #1d5f8f;
-}
-
-.moving-averages .ma10 dd {
-  color: #0a8f62;
-}
-
-.moving-averages .ma20 dd {
-  color: #a36a00;
-}
-
-.moving-averages .ma60 dd {
-  color: #8b4bb3;
-}
-
 dt,
-.moving-averages dt,
 .book span {
   color: var(--muted);
   font-size: 0.78rem;
