@@ -304,6 +304,42 @@ h2 {
   background: rgba(244, 247, 248, 0.72);
 }
 
+.moving-averages .ma {
+  border-left-width: 4px;
+}
+
+.moving-averages .ma5 {
+  border-left-color: #1d5f8f;
+}
+
+.moving-averages .ma10 {
+  border-left-color: #0a8f62;
+}
+
+.moving-averages .ma20 {
+  border-left-color: #a36a00;
+}
+
+.moving-averages .ma60 {
+  border-left-color: #8b4bb3;
+}
+
+.moving-averages .ma5 dd {
+  color: #1d5f8f;
+}
+
+.moving-averages .ma10 dd {
+  color: #0a8f62;
+}
+
+.moving-averages .ma20 dd {
+  color: #a36a00;
+}
+
+.moving-averages .ma60 dd {
+  color: #8b4bb3;
+}
+
 dt,
 .moving-averages dt,
 .book span {
