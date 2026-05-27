@@ -8,6 +8,33 @@ const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "127.0.0.1";
 const defaultSymbols = ["2408", "2344", "2330", "3481"];
+const reportSymbols = [
+  "2330",
+  "2317",
+  "2454",
+  "2382",
+  "3231",
+  "2376",
+  "3017",
+  "3324",
+  "3661",
+  "3443",
+  "5274",
+  "6442",
+  "4979",
+  "3450",
+  "1519",
+  "1503",
+  "1513",
+  "1514",
+  "6869",
+  "2603",
+  "2609",
+  "2615",
+  "2408",
+  "2344",
+  "3481"
+];
 const reportCache = new Map();
 
 const dailyReportPrompt = `你是一名专业的台股市场日报分析师、总体经济策略分析师和台湾电子半导体产业研究员。
@@ -197,12 +224,21 @@ function extractHtml(content) {
   return (match ? match[1] : content).trim();
 }
 
-function buildReportPrompt(slot) {
+function buildReportPrompt(slot, marketContext) {
   const slotText = slot === "morning" ? "早上 07:30" : "傍晚 18:00";
   return `${dailyReportPrompt}
 
 本次請選擇：${slotText}
 今日日期：${taipeiDateString()}
+
+本服務於呼叫 DeepSeek 前即時抓取的官方報價資料（極重要，優先使用）：
+${marketContext}
+
+資料使用規則：
+- 上方「本服務即時抓取資料」來自 TWSE/TPEx MIS API，請視為本次報告的優先基準資料。
+- 若你自己的知識、搜尋結果或其他來源與上方資料衝突，一律以上方資料為準。
+- 尤其台積電 2330 的現價/收盤價不得沿用舊資料；請使用上方 2330 欄位中的 price、previousClose、date、time。
+- 報告中若某項數據沒有在上方資料或可靠來源出現，請寫「暫無可靠資料」，不要以舊資料補齊。
 
 輸出要求：
 - 只輸出可直接嵌入 iframe srcdoc 的完整 HTML。
@@ -229,6 +265,7 @@ async function createDailyReport({ slot = "close", force = false } = {}) {
   const timeout = setTimeout(() => controller.abort(), 180000);
 
   try {
+    const marketContext = await fetchReportMarketContext();
     const response = await fetch(
       process.env.DEEPSEEK_API_URL || "https://api.deepseek.com/chat/completions",
       {
@@ -244,11 +281,11 @@ async function createDailyReport({ slot = "close", force = false } = {}) {
             {
               role: "system",
               content:
-                "你是嚴謹的台股市場分析師。台股相關金額必須使用新台幣，不得使用人民幣語境。必須標註來源；不知道就說暫無可靠資料。"
+                "你是嚴謹的台股市場分析師。台股相關金額必須使用新台幣，不得使用人民幣語境。使用者提供的 TWSE/TPEx 即時資料優先於你的既有知識；必須標註來源；不知道就說暫無可靠資料。"
             },
             {
               role: "user",
-              content: buildReportPrompt(slot)
+              content: buildReportPrompt(slot, marketContext)
             }
           ],
           temperature: 0.2,
@@ -306,6 +343,14 @@ function parseLevel(value) {
     .filter((number) => number !== null);
 }
 
+function formatTaiwanDateTime() {
+  return new Intl.DateTimeFormat("zh-TW", {
+    timeZone: "Asia/Taipei",
+    dateStyle: "medium",
+    timeStyle: "medium"
+  }).format(new Date());
+}
+
 function mapQuote(item) {
   const price = toNumber(item.z) ?? toNumber(item.pz);
   const previousClose = toNumber(item.y);
@@ -339,7 +384,9 @@ function mapQuote(item) {
 }
 
 async function fetchQuotes(symbols) {
-  const channels = symbols.map((symbol) => `tse_${symbol}.tw`).join("|");
+  const channels = symbols
+    .flatMap((symbol) => [`tse_${symbol}.tw`, `otc_${symbol}.tw`])
+    .join("|");
   const endpoint = new URL("https://mis.twse.com.tw/stock/api/getStockInfo.jsp");
   endpoint.searchParams.set("ex_ch", channels);
   endpoint.searchParams.set("json", "1");
@@ -363,10 +410,66 @@ async function fetchQuotes(symbols) {
   }
 
   return {
-    quotes: (payload.msgArray || []).map(mapQuote),
+    quotes: (payload.msgArray || [])
+      .filter((item) => /^\d{4}$/.test(item.c || ""))
+      .map(mapQuote),
     queryTime: payload.queryTime,
     userDelay: payload.userDelay
   };
+}
+
+function formatQuoteContext(quote) {
+  return {
+    symbol: quote.symbol,
+    name: quote.name,
+    exchange: quote.exchange,
+    price: quote.price,
+    previousClose: quote.previousClose,
+    change: quote.change,
+    changePercent: quote.changePercent,
+    open: quote.open,
+    high: quote.high,
+    low: quote.low,
+    volumeLots: quote.volumeLots,
+    date: quote.date,
+    time: quote.time,
+    source: quote.exchange === "otc" ? "TPEx/TWSE MIS" : "TWSE MIS"
+  };
+}
+
+async function fetchReportMarketContext() {
+  try {
+    const data = await fetchQuotes(reportSymbols);
+    const quotes = data.quotes.map(formatQuoteContext);
+    const tsmcQuote = quotes.find((quote) => quote.symbol === "2330");
+
+    return JSON.stringify(
+      {
+        generatedAtTaipei: formatTaiwanDateTime(),
+        source: "TWSE/TPEx MIS 即時報價 API",
+        queryTime: data.queryTime,
+        note:
+          "此資料由網站後端在呼叫 DeepSeek 前即時取得。若模型記憶或其他來源與此處衝突，請以此處為準。",
+        criticalReminder: tsmcQuote
+          ? `台積電 2330 本次抓取價格為 ${tsmcQuote.price} 新台幣，日期 ${tsmcQuote.date}，時間 ${tsmcQuote.time}。不得使用 895 元等舊資料。`
+          : "本次未取得台積電 2330 即時報價，請勿編造。",
+        quotes
+      },
+      null,
+      2
+    );
+  } catch (error) {
+    return JSON.stringify(
+      {
+        generatedAtTaipei: formatTaiwanDateTime(),
+        source: "TWSE/TPEx MIS 即時報價 API",
+        error: `即時報價抓取失敗：${error.message}`,
+        instruction: "即時資料不可用時，所有無可靠來源的數據請寫「暫無可靠資料」。"
+      },
+      null,
+      2
+    );
+  }
 }
 
 async function serveStatic(req, res) {
