@@ -136,6 +136,10 @@ function renderQuote(quote) {
   setField(card, "previousClose", formatNumber(quote.previousClose));
   setField(card, "volumeLots", formatVolume(quote.volumeLots));
   setField(card, "time", quote.time || "--");
+  setField(card, "ma5", formatNumber(quote.movingAverages?.ma5));
+  setField(card, "ma10", formatNumber(quote.movingAverages?.ma10));
+  setField(card, "ma20", formatNumber(quote.movingAverages?.ma20));
+  setField(card, "ma60", formatNumber(quote.movingAverages?.ma60));
   setField(card, "bestBid", formatNumber(bestBid));
   setField(card, "bestAsk", formatNumber(bestAsk));
 
