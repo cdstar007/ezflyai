@@ -8,7 +8,6 @@ const publicDir = join(__dirname, "public");
 const reportsDir = join(__dirname, "data", "reports");
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "127.0.0.1";
-const defaultSymbols = ["2408", "2344", "2330", "3481"];
 const reportSymbols = [
   "2330",
   "2317",
@@ -371,14 +370,6 @@ async function createDailyReport({ slot = "close" } = {}) {
   return reportInFlight.get(cacheKey);
 }
 
-function normalizeSymbols(value) {
-  const raw = value ? value.split(",") : defaultSymbols;
-  return raw
-    .map((symbol) => symbol.trim())
-    .filter((symbol) => /^\d{4}$/.test(symbol))
-    .slice(0, 20);
-}
-
 function toNumber(value) {
   if (!value || value === "-") return null;
   const number = Number(value);
@@ -552,21 +543,6 @@ async function serveStatic(req, res) {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
-
-  if (url.pathname === "/api/quotes") {
-    const symbols = normalizeSymbols(url.searchParams.get("symbols"));
-    if (!symbols.length) {
-      sendJson(res, 400, { error: "請輸入 4 碼台股代號" });
-      return;
-    }
-
-    try {
-      sendJson(res, 200, await fetchQuotes(symbols));
-    } catch (error) {
-      sendJson(res, 502, { error: error.message });
-    }
-    return;
-  }
 
   if (url.pathname === "/api/daily-report") {
     if (req.method !== "POST") {
